@@ -185,7 +185,7 @@ class Response:
             additional_fields=['conversationId', 'activityId', 'serviceUrl'],
             override=override_response_json,
         )
-        response_json['message'] = message
+        response_json['text'] = message
 
         response_url = self.urljoin(additional_params['serviceUrl'] if service_url is None else service_url,
                                "/v3/conversations/{}/activities/{}".format(
@@ -255,4 +255,3 @@ class Response:
             return url1 + url2[1:]
         else:
             return url1 + '/' + url2
-

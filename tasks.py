@@ -1,34 +1,60 @@
 from microsoftbotframework import Response
 import celery
-
-
-def respond_to_conversation_update(message):
-    if message["type"] == "conversationUpdate":
-        response = Response(message)
-        message_response = 'Have fun with the Microsoft Bot Framework'
-        response.reply_to_activity(message_response, recipient={"id": response["conversation"]["id"]})
-
+import requests
+import json
+import smtplib
 
 def echo_response(message):
     if message["type"] == "message":
         response = Response(message)
-        message_response = message["text"]
-        response_info = response.reply_to_activity(message_response)
 
-        from time import sleep
+        if "kids" in message["text"]:
+            r = requests.get('https://api.suncorp.com.au/olo/v1/interestRate/api/v1/products/kidsa')
+            product = r.json()
+            response.reply_to_activity('Yes, surely! We have a {}.'.format(product['name']))
+            return
 
-        sleep(2)
-        response.delete_activity(activity_id=response_info.json()['id'])
+        if "bonus" in message["text"]:
+            r = requests.get('https://api.suncorp.com.au/olo/v1/interestRate/api/v1/products/kidsa')
+            product = r.json()
+            response.reply_to_activity(product['description'])
+            return
 
-        sleep(2)
-        response.create_conversation('lets talk about something really interesting')
+        if "interest" in message["text"]:
+            r = requests.get('https://api.suncorp.com.au/olo/v1/interestRate/api/v1/products/kidsa')
+            product = r.json()
+            interest = product['data'][1]['values'][0]
+            bonus = product['data'][2]['values'][0]
+            response.reply_to_activity('The interest rate is ' + interest)
+            response.reply_to_activity('There\'s also a bonus interest of ' + bonus)
+            return
 
+        if "home loan" in message["text"]:
+            r = requests.get('https://api.suncorp.com.au/olo/v1/interestRate/api/v1/products/fixhome')
+            message_response = r.json()
+            response_info = response.reply_to_activity(message_response['name'])
+            return
 
-# This is a asynchronous task
-@celery.task()
-def echo_response_async(message):
-    if message["type"] == "message":
-        response = Response(message)
-        message_response = message["text"]
-        response.send_to_conversation(message_response)
+        if "hello" in message["text"]:
+            response.reply_to_activity('Hello! Bob the Banker at your service. How can I help you?')
+            return
 
+        sender = 'bobthebanker@suncorp.com.au'
+        receivers = ['andrea.vincita@suncorp.com.au']
+
+        message = """From: Bob the Banker <bobthebanker@suncorp.com.au>
+        To: Call Center <callcenter@suncorp.com.au>
+        Subject: Customer Query from Bot Chat
+
+        Hello,\n
+        There's customer asking a question that I can't answer. \n
+        Can you please get in touch with them please? Here is their question: \n {}
+        """.format(message["text"])
+
+        try:
+           smtpObj = smtplib.SMTP('smlsmtp.suncorpmetway.net', 25)
+           smtpObj.sendmail(sender, receivers, message)
+           response.reply_to_activity('Thanks for your question, I am currently not able to answer it yet but I have forwarded your query to our friendly Customer Service staffs. Rest assured.')
+           print ("Successfully sent email")
+        except SMTPException:
+           print ("Error: unable to send email")
